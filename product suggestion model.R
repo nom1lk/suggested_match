@@ -1,0 +1,91 @@
+
+library(dplyr)
+library(tm)
+library(caret)
+library(stringr)
+library(stringi)
+library(SnowballC)
+
+
+
+setwd("/Users/stevecondylios/Desktop/rails/Reece")
+r <- read.csv("/Users/stevecondylios/Desktop/rails/Reece/all_cats_fresh.csv", stringsAsFactors = FALSE)
+
+
+r <- r[r$one_if_rel == 1, ]
+r$time_of_scrape <- NULL
+r$one_if_rel <- NULL
+r$ML_one_if_rel <- NULL
+
+
+
+# testing for product match suggestion tool
+# script continues from 'data cleaning for seeding.R' (r is simply 11230 bunnings products)
+
+bun <- r[,"product"]
+bun <- str_trim(bun)
+bun <- tolower(bun)
+
+
+# How many products do we want to test it on when we've made it? 
+test_set_size <- 1000
+
+# Split data into training and test sets
+set.seed(1000)
+test_set <- bun[sample(length(bun), test_set_size)] 
+set.seed(1000)
+training_set <- bun[-sample(length(bun), test_set_size)] 
+
+training_corpus <- VCorpus(VectorSource(training_set))
+# DocumentTermMatrix(corpus, list(removePunctuation = TRUE, stopwords = TRUE, stemming = TRUE, removeNumbers = TRUE))
+training_tdm <- DocumentTermMatrix(training_corpus, list(removePunctuation = TRUE, stopwords = TRUE, stemming = FALSE, removeNumbers = FALSE))
+
+# stop=FALSE, stem=FALSE, rmNum=FALSE: dry   hose  ryobi vacuum    wet 
+# stop=TRUE, stem=FALSE, rmNum=FALSE: 18m   35mm    dry   hose  ryobi vacuum    wet 
+# so how about we try to split the 18 and m, and the 35 and mm (because the numbers might tell us something, but the )
+# Hooooolllld up - it removes decimal places, so 1.8m becomes 18m (!)
+
+names(training_tdm) <- make.names(names(training_tdm))
+training_tdm <- as.matrix(training_tdm)
+# inspect first product
+#training_tdm[1,training_tdm[1,] != 0]
+
+
+
+
+# change item_index_in_test_set to look at results for different products
+item_index_in_test_set <- 2
+print(paste("Product: ",test_set[item_index_in_test_set]))
+
+test_product_corpus <- VCorpus(VectorSource(test_set[item_index_in_test_set]))
+test_product_tdm <- DocumentTermMatrix(test_product_corpus, list(removePunctuation = TRUE, stopwords = TRUE, stemming = FALSE, removeNumbers = FALSE))
+names(test_product_tdm) <- make.names(names(test_product_tdm)) # not sure if this is working correctly, maybe it's a very smart function that does more than it appears to do
+test_product_tdm <- as.matrix(test_product_tdm)
+# test_product_tdm <- test_product_tdm[,2:ncol(test_product_tdm)] 
+
+score <- c()
+for (i in 1:nrow(training_tdm)) {
+  
+  tdm_terms <- colnames(training_tdm[,training_tdm[i,] == 1])
+  product_terms <- colnames(test_product_tdm)
+  score[i] <- sum(product_terms  %in% tdm_terms)
+  
+}
+
+training_tdm <- as.data.frame(training_tdm)
+
+training_tdm <- cbind(training_set, training_tdm, score)
+training_tdm <- arrange(training_tdm, desc(score)) 
+
+top_50_matches <- training_tdm[1:50,c("training_set", "score")]
+top_50_matches
+
+
+
+
+
+
+
+
+
+
