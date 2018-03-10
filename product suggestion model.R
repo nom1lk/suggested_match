@@ -8,7 +8,7 @@ library(SnowballC)
 
 
 
-setwd("/Users/stevecondylios/Desktop/rails/re")
+setwd("/Users/stevecondylios/Desktop/rails/re/Product Suggestion Model/")
 r <- read.csv("all_cats_fresh.csv", stringsAsFactors = FALSE)
 
 
@@ -54,13 +54,13 @@ training_tdm <- as.matrix(training_tdm)
 
 
 # change item_index_in_test_set to look at results for different products
-item_index_in_test_set <- 101
+item_index_in_test_set <- 733
 print(paste("Product: ",test_set[item_index_in_test_set]))
 
 test_product_corpus <- VCorpus(VectorSource(test_set[item_index_in_test_set]))
 test_product_tdm <- DocumentTermMatrix(test_product_corpus, list(removePunctuation = TRUE, stopwords = TRUE, stemming = FALSE, removeNumbers = FALSE))
 names(test_product_tdm) <- make.names(names(test_product_tdm)) # not sure if this is working correctly, maybe it's a very smart function that does more than it appears to do
-test_product_tdm <- as.matrix(test_product_tdm)
+test_product_tdm <- as.matrix(test_product_tdm) # note: the first column is 'Docs', but if we remove this column, we actually remove the next column - very strange, not sure why this happens, in any case don't remove the column!
 # test_product_tdm <- test_product_tdm[,2:ncol(test_product_tdm)] 
 
 score <- c()
@@ -72,15 +72,20 @@ for (i in 1:nrow(training_tdm)) {
   
 }
 
-training_tdm <- as.data.frame(training_tdm)
+prod_list_and_terms <- as.data.frame(training_tdm)
 
-training_tdm <- cbind(training_set, training_tdm, score)
-training_tdm <- arrange(training_tdm, desc(score)) 
+prod_list_and_terms <- cbind(training_set, prod_list_and_terms, score)
+prod_list_and_terms <- arrange(prod_list_and_terms, desc(score)) 
 
-top_50_matches <- training_tdm[1:50,c("training_set", "score")]
+# Inspect results
+top_50_matches <- prod_list_and_terms[1:50,c("training_set", "score")]
 top_50_matches
 
+print(paste("Product: ",test_set[item_index_in_test_set]))
 
+# fix this bit
+terms_used <- names(training_tdm[1,training_tdm[1,] != 0])
+terms_used
 
 
 # Brainstorming: how can we make this algorithm smarter? How can we make it use information about known matches to
