@@ -56,9 +56,21 @@ bunnings$one_if_rel <- NULL
 bunnings$ML_one_if_rel <- NULL
 rownames(bunnings) <- 1:nrow(bunnings)
 
+
+
+
+
+
+
+
+
+
+#----- Generating ranked matches for *one* comp product -----#
+
 # select bunnings to test products at random
 
 item_index_in_test_set <- 233
+comp_prod <- bunnings[,"product"][item_index_in_test_set]
 print(paste("Product: ",bunnings[,"product"][item_index_in_test_set]))
 
 comp_product_corpus <- VCorpus(VectorSource(bunnings[,"product"][item_index_in_test_set]))
@@ -77,21 +89,16 @@ for (i in 1:nrow(tdm)) {
   
 }
 end_time <- Sys.time()
-end_time - start_time # 26 minutes per product just on this loop
+end_time - start_time # 26 minutes per product just on this loop with full tdm, 14 minutes for tdm with only 
 
 prod_list_and_terms <- as.data.frame(tdm)
 
 # Rename products and score before cbinding to avoid column name collisions
 
-
+colnames(prod_list_and_terms)[which(colnames(prod_list_and_terms) == "score")] <- "score_renamed"
+colnames(prod_list_and_terms)[which(colnames(prod_list_and_terms) == "products")] <- "products_renamed"
 
 prod_list_and_terms <- cbind(products, prod_list_and_terms, score)
-names(prod_list_and_terms) <- make.names(names(prod_list_and_terms)) # note this won't do anything as make.names won't handle duplicate column names (based on my current experience)
-# so we rename the conflicting columns manually 
-index_of_score <- which(colnames(prod_list_and_terms) == "score")
-index_of_products <- which(colnames(prod_list_and_terms) == "products")
-colnames(prod_list_and_terms)[index_of_score[1]] <- "score_string"
-colnames(prod_list_and_terms)[index_of_products[2]] <- "products_string"
 
 
 prod_list_and_terms <- arrange(prod_list_and_terms, desc(score)) 
@@ -108,8 +115,83 @@ terms_used <- names(comp_product_tdm[1,comp_product_tdm[1,] != 0])
 terms_used
 
 
+write.table(top_50_matches, "top_50_matches.csv", append=TRUE, sep=",", row.names = FALSE)
+write.table(c("","",""), "top_50_matches.csv", append=TRUE, sep=",", row.names = FALSE, col.names = FALSE, na = "")
+write.table(comp_prod, "top_50_matches.csv", append=TRUE, sep=",", row.names = FALSE)
+write.table(c("","",""), "top_50_matches.csv", append=TRUE, sep=",", row.names = FALSE, col.names = FALSE, na = "")
+write.table(terms_used, "top_50_matches.csv", append=TRUE, sep=",", row.names = FALSE)
+
+
+
+
+
+
+
+
+
+#----- Inspecting results and working out how to use the tdm given current method applied to it is unfeasibly long in duration/cost -----#
+
 # ~26 minutes per product just for the main loop, time consuming elsewhere too
 # unfeasible without modification (~ 45 days for ~ 20k products across 6 comps - would take 7 days on 64 core machine!)
+# given this is unfeasable, how about inspecting the tdm and seeing if it can be reduced - we will lose some predictive power but it may enable us to run the model 
+# within a feasable timeframe
+a <- colSums(tdm)
+
+# total number of words across all ~131k products? 
+sum(a) # ~700k
+
+# total number of distinct words across ~131k products
+ncol(tdm) # ~52k
+
+
+table(a) # ~32k words appear only once, ~6k twice, 2.5k thrice, 1.7k four times, 1.1k five times, 
+# 355 words appear 10 times, 137 words appear 20 times, 65 appear 30 times, 33 appear 50 times, 14 appear 100 times, 
+# the most frequently any word appears is 4578 times
+
+
+
+b <- table(a) %>% as.data.frame(.) %>% arrange(., desc(Freq))
+
+# Which words appear more than 300 times? 
+tdm[,which(a > 300)] %>% colnames()
+
+# Which words appear more than 1000 times? 
+tdm[,which(a > 1000)] %>% colnames()
+
+# Which words appear more than 100 times? 
+tdm[,which(a > 100)] %>% colnames() # ~1000 words
+
+
+
+
+
+
+
+
+
+
+
+#----- Generating ranked matches for *a list* comp products -----#
+
+# Current tdm size: ~55GB
+
+# reduce tdm - reduced size: 1.2GB 
+tdm <- tdm[, which(a > 100)]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
